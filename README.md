@@ -89,17 +89,20 @@ is remembered in `localStorage`.
 - **WalletConnect** is supported once you add your own free Reown
   project ID from [cloud.reown.com](https://cloud.reown.com).
 
-Your session survives a page reload. It does not survive a
-redeploy — reconnecting is one tap.
+Your session survives a page reload. Disconnect clears it
+immediately. A redeploy clears it when the session build tag changes.
 
 ## Run it
 
-It is a static site. Three files, no build step, no server:
+It is a static site. No build step and no server:
 
 ```text
 index.html
 styles.css
+polish.css
 app.js
+polish.js
+vercel.json
 assets/
 ```
 
