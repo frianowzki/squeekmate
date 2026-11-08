@@ -96,7 +96,7 @@ python3 -m http.server 8000
 
 Open `http://127.0.0.1:8000`. A wallet that holds a Squeek is optional: Watch any address, or visit a token id, still loads public API data.
 
-Fonts (Quicksand, Barlow Condensed, IBM Plex Mono) are requested from Google Fonts. WalletConnect’s library is loaded from jsDelivr only after you paste a Reown project id and click WalletConnect. Several extension logos are remote images. Those are runtime requests, not a compile step.
+Fonts (Quicksand, Barlow Condensed, IBM Plex Mono) are requested from Google Fonts. WalletConnect’s library is loaded from jsDelivr when a visitor clicks WalletConnect. Several extension logos are remote images. Those are runtime requests, not a compile step.
 
 ## Repository layout
 
@@ -123,7 +123,7 @@ The data client is already in the app. This README records it.
 | 15-second world timer | [`app.js`](app.js) line 18, `setInterval(refreshWorld, 15e3)` |
 | 5-second event timer | [`app.js`](app.js) lines 35–38 |
 | Wheel rules for that status body | [`wheel.js`](wheel.js) |
-| WalletConnect session metadata URL `https://api.squeekchain.com` | [`app.js`](app.js), `metadata.url` on the provider. This is not a `/v1` data call |
+| WalletConnect session metadata | [`app.js`](app.js): `metadata.url` is `https://squeekmate.xyz` and the icon is `https://squeekmate.xyz/assets/squeekchain-mark.jpg`. This is not a `/v1` data call |
 
 `apiGet(path)` requests `API + path`, sends `accept: application/json`, and aborts after 12 seconds.
 
@@ -210,7 +210,7 @@ Motion also pauses for `prefers-reduced-motion: reduce`, a hidden document, or a
 
 Extension wallets are discovered with EIP-6963 and `window.ethereum`. The connect call is `eth_requestAccounts`. If the chain is not Sepolia, the page calls `wallet_switchEthereumChain`, and on code `4902` or `-32603` it calls `wallet_addEthereumChain`. Names and icons prefer the EIP-6963 record. Logo URLs are matched when the name contains metamask, rabby, coinbase, brave, trust, okx, or phantom.
 
-WalletConnect needs a project id from [cloud.reown.com](https://cloud.reown.com). The id is not stored in this repo. The local mark is [`assets/wallets/walletconnect.svg`](assets/wallets/walletconnect.svg).
+WalletConnect uses the public project id `75702030b4763bda309d919e1a76233b` already in [`app.js`](app.js). The button opens the QR modal on Sepolia (`11155111`). The session methods are `eth_chainId`, `eth_accounts`, `wallet_switchEthereumChain`, and `wallet_addEthereumChain`. The page does not request a signature or a transaction. There is no project-id field for visitors. The button mark is [`assets/wallets/walletconnect.svg`](assets/wallets/walletconnect.svg). Extension connect and Watch any address stay as they are. A QR session is not a connected wallet until a wallet approves it.
 
 Watch any address sets no provider and assumes Sepolia. It can still load the public account, pack, and activity routes.
 
