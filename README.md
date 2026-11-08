@@ -11,12 +11,12 @@
 
 <p align="center">
   <a href="https://squeekmate.xyz"><b>Live app</b></a>
-  · Sepolia testnet · read-only · no build step
+  · Sepolia testnet · 100% on-chain · full signing + Claim SQK · no build step
 </p>
 
-Squeekmate is a small handheld console in the browser. Connect a wallet, watch an address, or visit a token id, and one Squeek sits on the LCD. Levels, merge state, claimable SQK, wheel speed, and the activity feed are read from Squeekchain. Care buttons, the nap timer, and Spin Dash stay on this page.
+Squeekmate is a small handheld console in the browser. Connect a wallet, watch an address, or visit a token id, and one Squeek sits on the LCD. Levels, merge state, claimable SQK, wheel state, and the activity feed are read directly from the Squeekchain contracts on Sepolia — there is no off-chain API. Care buttons, the nap timer, and Spin Dash stay on this page.
 
-The app never sends a transaction and never calls a signing method. Connecting an extension still asks that wallet for permission to share an account.
+The app sends exactly one transaction type: **Claim SQK**, through the connected wallet's signer (Reown AppKit + ethers). Everything else is a read. Connecting a wallet asks that wallet for permission to share an account and to sign the claim when you confirm it.
 
 squeekchain-project: 25bd4d64-4072-4e65-933f-e6de29f5954d
 
@@ -29,7 +29,7 @@ squeekchain-project: 25bd4d64-4072-4e65-933f-e6de29f5954d
 - [How data moves](#how-data-moves)
 - [Run it locally](#run-it-locally)
 - [Repository layout](#repository-layout)
-- [Squeekchain API](#squeekchain-api)
+- [On-chain data layer](#on-chain-data-layer)
 - [Polling, retries, and failure](#polling-retries-and-failure)
 - [The wheel](#the-wheel)
 - [Wallet, Sepolia, and Etherscan](#wallet-sepolia-and-etherscan)
@@ -38,7 +38,7 @@ squeekchain-project: 25bd4d64-4072-4e65-933f-e6de29f5954d
 
 ## The console
 
-Four tabs. The files on `main` are one static document: [`index.html`](index.html), [`styles.css`](styles.css), and [`app.js`](app.js).
+Four tabs. The deployed file on `main` is one self-contained document: [`index.html`](index.html) (all CSS and JS inlined, no build step). The repo also retains `styles.css`, `app.js`, `docs/`, and `assets/` from the earlier multi-file layout.
 
 | Tab | What it holds |
 | --- | --- |
@@ -49,45 +49,45 @@ Four tabs. The files on `main` are one static document: [`index.html`](index.htm
 
 Visit Any Squeek accepts a token id from **1 through 9999**. Random draws **1 through 8017** (`1 + Math.floor(8017 * Math.random())`).
 
-Spin Dash runs for 15 seconds. Its tap target is `max(20, round(0.9 × RPM))` when the latest status measurement has RPM above zero, and **45** when it does not.
+Spin Dash runs for 15 seconds. Its tap target is `max(20, round(0.9 × RPM))` when RPM is above zero, and **45** when it is not. RPM reads **0** in the on-chain build (there is no on-chain source for live device telemetry), so the tap target is 45 unless a measurement arrives from elsewhere.
 
 ## Feature matrix
 
-| Surface | What you see | Source in this repo |
+| Surface | What you see | Source (all on-chain, Sepolia) |
 | --- | --- | --- |
-| Pet artwork and level | Name, level, merge state, traits, base power, next merge block | `GET /v1/squeeks/{id}` |
-| LCD background removal | Character drawn over the theme when the SVG can be cleaned | `cleanSqueekSvg` / `squeekArtUri` in [`app.js`](app.js). The original data URI is kept when cleaning does not apply |
-| Energy | Bar plus an RPM sentence | Latest `measurement` on `GET /v1/status`, then session care nudges |
-| Fullness | Bar | `core.blockProgress` from `GET /v1/core` when that body is `available`, then session feeds |
+| Pet artwork and level | Name, level, merge state, traits, base power, next merge block | SqueekNFT `ownerOf` / `level` / `nextMergeHeight` / `tokenURI` (metadata decoded locally from the on-chain tokenURI: SVG data-URI image + traits) |
+| LCD background removal | Character drawn over the theme when the SVG can be cleaned | `cleanSqueekSvg` / `squeekArtUri` in the page. The original data URI is kept when cleaning does not apply |
+| Energy | Bar plus an RPM sentence | SqueekCore settled-round state; RPM is 0 (no on-chain device telemetry), then session care nudges |
+| Fullness | Bar | `blockProgress` from SqueekCore `state()`, then session feeds |
 | Mood | Bar | Squeek level, merge state, and claimable SQK, then session care |
-| Bond | Bar | Session care counts only. Nothing writes bond back to the API |
-| Nap | 45-second local timer and a sleep pose on the pet | `S.napUntil`. The status payload has no sleep field |
-| Wheel picture | Inline SVG rotor `#wvRotor` | [`index.html`](index.html) and `updateWheelViz` in [`app.js`](app.js) |
-| Core counters | Block, work, work per 1,000 blocks, settled round, progress | `GET /v1/core` after it arrives. Until then, the hardcoded `SNAPSHOT` |
-| SQK economy | Supply, mined, burned, staked, NFT live/issued, merges open, bar / dots / pie | `GET /v1/economy/state`. The chart is seeded first from constants in [`app.js`](app.js) |
-| Chain Activity | All, Protocol, Players, My activity | `GET /v1/events` or `GET /v1/accounts/{address}/activity` |
+| Bond | Bar | Session care counts only. Nothing writes bond back on-chain |
+| Nap | 45-second local timer and a sleep pose on the pet | `S.napUntil`. There is no on-chain sleep field |
+| Wheel picture | Inline SVG rotor `#wvRotor` | [`index.html`](index.html) and `updateWheelViz` in the page |
+| Core counters | Block, work, work per 1,000 blocks, settled round, progress | SqueekCore `state()` via `eth_call`, live on every refresh. No hardcoded snapshot |
+| SQK economy | Supply, mined, burned, staked, NFT live/issued, merges open, bar / graphic / pie | SqueekToken + SqueekMining + SqueekStaking via `eth_call` |
+| Chain Activity | All, Protocol, Players, My activity | Raw contract event logs via `eth_getLogs` (BatchSettled, Checkpointed, Staked, RewardClaimed, and others) with block timestamps |
 | Transaction chip | Text link “Etherscan” when the hash matches `0x` plus 64 hex digits | `https://sepolia.etherscan.io/tx/…` |
 | SQK and Squeek counts | Wallet SQK, Squeek NFT balance, Sepolia ETH | Sepolia `eth_call` `balanceOf` and `eth_getBalance` |
-| Claimable SQK, power, stake, pack, earnings | Account panel and pack grid | `GET /v1/accounts/{address}` |
-| Your Earnings | Bar, dots, and pie for up to the last 7 `earnings` rows | Same account payload |
-| Shell badge and claim row image | Squeekchain mark | [`assets/squeekchain-mark.jpg`](assets/squeekchain-mark.jpg). This repo does not identify that file as an SQK token logo |
+| Claimable SQK, power, stake, pack, earnings | Account panel and pack grid | SqueekStaking (`claimable`, `claimRecipient`, stake) + SqueekNFT `ownerOf` + Transfer / staking deposit / withdraw / merge logs |
+| Your Earnings | Bar, graphic, and pie for up to the last 7 / 14 / 30 days | `RewardClaimed` / `ClaimedAndStaked` logs, selectable view (Bar / Graphic / Pie) and range (7 / 14 / 30 days) |
+| Shell badge and claim row image | Squeekchain mark | Inlined as a data URI in [`index.html`](index.html). The repo file [`assets/squeekchain-mark.jpg`](assets/squeekchain-mark.jpg) is base64 text, not a binary JPEG — the deployed page does not depend on it |
+| Claim SQK | Button in the On-Chain card; confirmation with amount, recipient, contract, account, network, and gas estimate; sends `SqueekStaking.claim(account)` | Connected wallet signer via Reown AppKit + ethers. Claim selector `0x1e83409a` |
 
 ## How data moves
 
 ```mermaid
 flowchart LR
   page[Squeekmate page]
-  api["api.squeekchain.com/v1"]
   rpc[Sepolia JSON-RPC]
+  contracts[Squeekchain contracts]
   scan[sepolia.etherscan.io]
 
-  page -->|"every 15s: /status, /core, /economy/state"| api
-  page -->|"visible tab, every 5s: /events or account activity"| api
-  page -->|"eth_call balanceOf and eth_getBalance"| rpc
+  page -->|"eth_call + eth_getLogs"| rpc
+  rpc -->|"reads"| contracts
   page -->|"transaction links only"| scan
 ```
 
-There is no WebSocket and no server in this repository. `apiGet` uses `fetch` with `cache: "no-store"`. Chain Activity copy in the page says the list is live from the Squeekchain API and refreshes every 5 seconds. That sentence describes the poll, not a stream.
+There is no off-chain API and no WebSocket and no server in this repository. **Zero requests go to `api.squeekchain.com` or any other off-chain API.** Every data read is a JSON-RPC POST to a Sepolia endpoint (primary `ethereum-sepolia-rpc.publicnode.com`, fallbacks `sepolia.drpc.org` and `ethereum-sepolia.blockpi.network/v1/rpc/public`). Pet images and traits are decoded locally from the on-chain `tokenURI`. Chain Activity copy in the page says the list is live from the chain and refreshes every 5 seconds. That sentence describes the poll, not a stream.
 
 The 15-second world refresh also calls the current feed category, including while the tab is hidden. The dedicated 5-second timer runs only when `document.hidden` is false, and once more when the tab becomes visible again.
 
@@ -101,16 +101,16 @@ python3 -m http.server 8000
 
 Open `http://127.0.0.1:8000`. The public site is [https://squeekmate.xyz](https://squeekmate.xyz).
 
-A wallet that holds a Squeek is optional: Watch any address, or visit a token id, still loads public API data.
+A wallet that holds a Squeek is optional: Watch any address, or visit a token id, still loads public on-chain data.
 
-Fonts (Quicksand, Barlow Condensed, IBM Plex Mono) are requested from Google Fonts. WalletConnect’s library is loaded from jsDelivr only after you paste a Reown project id and click WalletConnect. The WalletConnect mark on the button is loaded from `cdn.simpleicons.org`, and several extension logos are remote images. Those are runtime requests, not a compile step.
+Fonts (Quicksand, Barlow Condensed, IBM Plex Mono) are requested from Google Fonts. Reown AppKit is loaded from esm.sh. The WalletConnect mark on the button is loaded from `cdn.simpleicons.org`, and several extension logos are remote images. Those are runtime requests, not a compile step.
 
 ## Repository layout
 
 ```text
-index.html                 page, tabs, wordmark, and the inline wheel SVG
-styles.css                 gadget, LCD themes, charts
-app.js                     API client, wallet, vitals, feed, economy, wheel motion
+index.html                 deployed single-file app (all CSS/JS inlined, BUILD v30)
+styles.css                 earlier multi-file layout (retained, not used by the deployed file)
+app.js                     earlier multi-file layout (retained, not used by the deployed file)
 docs/readme-header.png     wordmark used at the top of this README
 assets/squeekchain-mark.jpg
 assets/wallets/logo-0.svg
@@ -118,84 +118,66 @@ assets/wallets/logo-0.svg
 
 `main` does not contain `wheel.js` or a separate wheel image set. The rotor is the `#wvRotor` group in [`index.html`](index.html).
 
-## Squeekchain API
+## On-chain data layer
 
-The data client is in [`app.js`](app.js) on `main`. This README records that file.
+The data layer is in the single [`index.html`](index.html) on `main`. All reads are direct `eth_call` / `eth_getLogs` against the official Squeekchain contracts on Sepolia (release `core-sepolia-20261103`, deploy block `12057556`). All 25 function selectors and 12 event topics were verified against the official ABI files with ethers — zero mismatches.
 
-| Piece | Where |
+| Contract | Address (Sepolia 11155111) |
 | --- | --- |
-| Base URL `https://api.squeekchain.com/v1` | [`app.js`](app.js) line 1, constant `API` |
-| `apiGet`, `refreshWorld`, `loadFeed`, `loadSqueek`, `loadAccount` | same file, the first script block |
-| 15-second world timer | [`app.js`](app.js) line 18, `setInterval(refreshWorld, 15e3)` |
-| 5-second event timer | [`app.js`](app.js) lines 35–38 |
-| Wheel motion for that status body | `updateWheelViz` in [`app.js`](app.js), applied to `#wvRotor` |
-| WalletConnect session metadata URL `https://api.squeekchain.com` | [`app.js`](app.js), `metadata.url` on the provider. This is not a `/v1` data call |
+| SqueekCore | `0xFD6C166D4B8E2962E65746a13e5a0797CD4dE0c4` |
+| SqueekNFT | `0xC4C7982657f00509548F3a3a41db7FA439a6856B` |
+| SqueekToken ($SQK) | `0xd78a3956cF63164d1Fa1C622ad3c66623162Fa1e` |
+| SqueekMining | `0x2dCcB11fcC2dEfdd188555e45aCb52231e82e218` |
+| SqueekStaking | `0x50fd1780526C3186A0c037c7622203bC4fb611ca` |
 
-`apiGet(path)` requests `API + path`, sends `accept: application/json`, and aborts after 12 seconds.
-
-| Call | Used for |
+| Read | Used for |
 | --- | --- |
-| `GET /status` | `measurement` (`coreStatus`, `rpmMilli`, speed, distance), `oracle.state`, `settlementQueue.state` |
-| `GET /core` | Painted only when `status` is `"available"` and `core` is present: block height, block progress, cumulative work, work per thousand blocks, settled round |
-| `GET /economy/state` | Painted only when `status` is `"available"`: supply, staking total, NFT live/issued, merges open, chain safe block, lifecycle stage and round, schedule |
-| `GET /events?category={all\|protocol\|players}&limit=40` | Chain Activity for those three chips |
-| `GET /accounts/{address}/activity?limit=40` | My activity. Requires a connected or watched address |
-| `GET /accounts/{address}?limit=100` | Pack, rewards, power, stake, earnings. Further pages use `cursor` |
-| `GET /squeeks/{id}` | The pet. A body whose `status` is not `"available"` is treated as a failed load |
+| SqueekCore `state()` | Wheel / core: block height, block progress, cumulative work, work per thousand blocks, settled round, difficulty |
+| SqueekToken + SqueekMining + SqueekStaking | SQK economy: total supply, mined, burned, premint, cap, staking totals, reward stream, issuance schedule, NFT live / issued, merges open |
+| SqueekNFT `ownerOf` / `level` / `nextMergeHeight` / `tokenURI` | The pet: owner, level, merge state, next merge block, base power, artwork + traits (decoded from the on-chain tokenURI) |
+| Transfer + staking deposit / withdraw / merge logs (verified against `ownerOf`) | Pack: Squeeks held for the connected or watched address, including staking custody |
+| SqueekStaking `claimable` / `claimRecipient` | Claimable SQK, power, stake |
+| `RewardClaimed` / `ClaimedAndStaked` logs | Your Earnings |
+| Raw contract event logs (`eth_getLogs`, per-contract topic filters, 6,000-block feed window) | Chain Activity (All / Protocol / Players) and My Activity, with block numbers and timestamps |
 
-`updateWheelViz` reads `measurement.coreStatus` and `measurement.rpmMilli`. It does not read `freshness`. `ACTIVE` starts the rotor animation. Any other core status, including `IDLE`, takes the idle branch even when `rpmMilli` is above zero. Zero milli-RPM is not a separate API sleep value. The status route has no hamster running field and no sleep field.
-
-Account and event bodies that are not `"available"` surface `reason` when the API sends one. The feed then says the indexer may be catching up. A thrown `fetch` says the feed, the account, or the Squeek could not be reached.
+The layer retries across the fallback RPC endpoints when a public endpoint returns an error (including the transient `pruned history unavailable` on log scans). Log queries use per-contract topic filters and a 6,000-block feed window.
 
 ## Polling, retries, and failure
 
 | Timer | What it requests | When it stops |
 | --- | --- | --- |
-| 15 seconds | `/status`, `/core`, `/economy/state`, then the current feed category | It keeps firing, including in a hidden tab |
+| 15 seconds | Core state, economy state, then the current feed category | It keeps firing, including in a hidden tab |
 | 5 seconds | Current feed category only | Skipped while `document.hidden` is true |
 | Immediate | Same feed request | When the tab becomes visible |
 
-`apiGet` retries twice more (three tries total):
+RPC reads retry across the fallback endpoints:
 
-- HTTP 429 or any status of 500 and above waits for `Retry-After`, clamped between 1 and 5 seconds. A missing header waits 2 seconds.
-- Any other failure waits `1200 × attempt` milliseconds. A failed `/status` marks the live dot off before that wait.
-- After the last failure the error is thrown. Callers decide what stays on screen.
+- A failed endpoint is retried on the next endpoint in the list (primary, then drpc, then blockpi).
+- A repeated log scan that hits `pruned history unavailable` is retried the same way; the identical call succeeds on other runs.
+- After the last fallback fails the error is thrown. Callers decide what stays on screen.
 
 What stays on screen:
 
 | Failure | What the page does |
 | --- | --- |
-| `/status` fails | Live dot turns off. The last RPM, speed, distance, and core label are left as they were |
-| `/core` fails, or `status` is not `"available"` | Previous core numbers stay. If none have arrived, the startup snapshot stays |
-| `/economy/state` fails, or `status` is not `"available"` | Previous economy text and chart stay. Before the first success, the chart is the hardcoded seed |
+| Core read fails | Previous core numbers stay. If none have arrived, the counters stay empty (no hardcoded snapshot) |
+| Economy read fails | Previous economy text and chart stay. Before the first success, the chart is empty |
 | Events fail | The list is replaced with an error sentence |
 | Squeek load fails | Up to 3 extra tries, 3.5 seconds apart, then the LCD empty state and Try again |
 
-Startup snapshot, written before the first successful `/core`:
-
-| Field | Hardcoded value |
-| --- | --- |
-| `blockHeight` | 1999, labeled “(snapshot)” until `/core` replaces it |
-| `cumulativeWork` | 18553 |
-| `workPerThousandBlocks` | 8238 |
-| `settledThroughRound` | 533 |
-| `blockProgress` | 322478319, stored on `SNAPSHOT` and not copied into the progress bar at startup |
-
-SQK chart seed, used until `supply.capBaseUnits` arrives: premint `210000000` SQK, launch bonus `105000000` SQK, cap `2100000000` SQK, each with 18 decimal base units in the source. Mined starts at zero. A successful economy response replaces premint, mined, burned, staked, and the bonus amount from `schedule.launchBonusBaseUnits`.
-
-Those seeds and the snapshot are why a number on screen can be a placeholder or a previous response. A pulsing live dot means the latest `/status` payload had a measurement whose `coreStatus` is `ACTIVE`. It does not mean every other figure was refreshed in that same moment.
+There is no hardcoded snapshot and no seeded chart in the on-chain build. A pulsing live dot means the latest core read succeeded. It does not mean every other figure was refreshed in that same moment.
 
 ## The wheel
 
 On `main`, the World wheel is the inline SVG in [`index.html`](index.html). `updateWheelViz` only changes that drawing:
 
-| Condition in `app.js` | What the SVG does |
+| Condition in the page | What the SVG does |
 | --- | --- |
-| The local nap timer is still running | Class `wheelviz state-sleep`. This follows the Nap button on the pet, not an API field |
-| `measurement.coreStatus` is `ACTIVE` | Class `state-run`. `#wvRotor` animation duration is `60 / RPM` seconds, clamped between 0.45 and 6, or 1.15 seconds when RPM is 0 |
-| Any other status, or no measurement | Class `state-idle`. The RPM text is still filled from `rpmMilli` when a measurement exists |
+| The local nap timer is still running | Class `wheelviz state-sleep`. This follows the Nap button on the pet, not an on-chain field |
+| SqueekCore settled rounds are advancing | Class `state-run`. The wheel state (settled work, difficulty, block progress) is exact on-chain data |
+| No fresh core read | Class `state-idle` |
 
-There is no separate hamster sprite and no `wheel.js` on `main`. The API does not send a running pose or a sleep pose for the drawing. The sleep class is the local 45-second nap.
+There is no separate hamster sprite and no `wheel.js` on `main`. Live RPM, speed, and distance read **0** in the on-chain build: instantaneous device telemetry exists only in the off-chain device service and has no on-chain source. The Wheel derives its state from SqueekCore's settled rounds instead. The sleep class is the local 45-second nap.
 
 ## Wallet, Sepolia, and Etherscan
 
@@ -203,21 +185,21 @@ There is no separate hamster sprite and no `wheel.js` on `main`. The API does no
 | --- | --- |
 | Chain | Sepolia, id `11155111`, hex `0xaa36a7` |
 | Primary RPC | `https://ethereum-sepolia-rpc.publicnode.com` |
-| `eth_call` fallbacks | `https://sepolia.drpc.org`, then `https://ethereum-sepolia.blockpi.network/v1/rpc/public` |
+| RPC fallbacks | `https://sepolia.drpc.org`, then `https://ethereum-sepolia.blockpi.network/v1/rpc/public` |
 | ETH balance | `eth_getBalance` on the primary RPC only |
 | SQK token | `0xd78a3956cf63164d1fa1c622ad3c66623162fa1e`, `balanceOf` (`0x70a08231`) |
 | Squeek NFT | `0xc4c7982657f00509548f3a3a41db7fa439a6856b`, `balanceOf` |
-| Staking constant | `0x50fd1780526c3186a0c037c7622203bc4fb611ca` is declared and not passed to `eth_call` |
+| Staking | `0x50fd1780526c3186a0c037c7622203bc4fb611ca`, `claimable` (`0x402914f5`), `claimRecipient` (`0x9e8a8a64`), `claim` (`0x1e83409a`) |
 | Explorer | `https://sepolia.etherscan.io`, including `/tx/{hash}` |
 | Add-chain payload | Native currency “Sepolia ETH”, the primary RPC, and that explorer |
 
-Extension wallets are discovered with EIP-6963 and `window.ethereum`. The connect call is `eth_requestAccounts`. If the chain is not Sepolia, the page calls `wallet_switchEthereumChain`, and on code `4902` or `-32603` it calls `wallet_addEthereumChain`. Names and icons prefer the EIP-6963 record. Logo URLs are matched when the name contains metamask, rabby, coinbase, brave, trust, okx, or phantom.
+Wallet connection is Reown AppKit 1.8.24 + Ethers adapter (from esm.sh), Sepolia only. The project id is the app owner's own Reown project id, and `squeekmate.xyz` must be allowlisted on [dashboard.reown.com](https://dashboard.reown.com) for production. Network switching uses AppKit's own `modal.switchNetwork(Sepolia)` for WalletConnect (raw `wallet_switchEthereumChain` is kept for injected wallets). Chain state comes from AppKit (`subscribeNetwork` / `getChainId`).
 
-WalletConnect needs a project id from [cloud.reown.com](https://cloud.reown.com). The id is not stored in this repo. The button image is the Simple Icons mark requested from `https://cdn.simpleicons.org/walletconnect`.
+Claim SQK is the app's only transaction. It reads claimable SQK and the claim recipient fresh, simulates via `staticCall` + `estimateGas`, shows a confirmation dialog (amount, recipient, contract, account, network, 0 ETH value, gas estimate), sends `SqueekStaking.claim(account)` through the connected wallet's signer, links the Etherscan transaction, waits for the receipt, then refreshes claimable SQK and the SQK balance. It needs Sepolia ETH for gas.
 
-Watch any address sets no provider and assumes Sepolia. It can still load the public account, pack, and activity routes.
+Watch any address sets no provider and assumes Sepolia. It can still load the public on-chain account, pack, and activity data.
 
-A session is stored in `localStorage` under `squeekmate-session-v1` with build tag `2026-11-08-v17`. Disconnect removes it. A different build tag removes it on the next load, so a redeploy that changes the tag asks you to connect again. The tag match is a reload check, not a signature.
+A session is stored in `localStorage` under `squeekmate-session-v1` with build tag `2026-11-09-v30`. Disconnect removes it. A different build tag removes it on the next load, so a redeploy that changes the tag asks you to connect again. The tag match is a reload check, not a signature.
 
 ## Care, themes, and sound
 
@@ -230,10 +212,12 @@ Button sounds start on (`S.sound` is true). The chiptune loop starts off.
 ## Honest limitations
 
 - The live app link is [https://squeekmate.xyz](https://squeekmate.xyz).
-- Chain Activity is polled. The visible-tab interval is 5 seconds. Status, core, and economy are polled every 15 seconds. Nothing here subscribes to a stream.
-- The first paint of the core counters is the hardcoded snapshot above. Economy slices start from the hardcoded cap, premint, and launch bonus. A failed later poll keeps the last successful numbers. Not every figure is a live reading on every visit.
-- The rotor animation runs when `coreStatus` is `ACTIVE`. It does not read freshness, and it does not read a hamster pose. Local nap adds the class `state-sleep` for 45 seconds. That class is not an API sleep state.
-- [`assets/squeekchain-mark.jpg`](assets/squeekchain-mark.jpg) is the Squeekchain mark on the shell and on the claimable-SQK row. This repository does not establish it as the official SQK token logo.
-- Care, bond, nap, and Spin Dash are local. They do not post to `/v1`.
-- Balances come from public Sepolia RPC endpoints. If those endpoints fail, the balance cells become an em dash. Account data can still load from the API, and the other way around.
-- The app is a read-only Sepolia interface. It does not claim mainnet balances, and it does not submit merges, claims, or transfers.
+- The app is 100% on-chain for data: zero requests to `api.squeekchain.com` or any other off-chain API. All reads are direct Sepolia `eth_call` / `eth_getLogs` against the official contracts above.
+- Chain Activity is polled. The visible-tab interval is 5 seconds. Core and economy are polled every 15 seconds. Nothing here subscribes to a stream.
+- The first paint of the core counters and the economy chart is empty until the first successful on-chain read. A failed later poll keeps the last successful numbers. Not every figure is a live reading on every visit.
+- Live RPM, speed, and distance read 0: the hamster wheel's instantaneous device telemetry has no on-chain source. The Wheel derives its state from SqueekCore's settled rounds. Local nap adds the class `state-sleep` for 45 seconds. That class is not an on-chain sleep state.
+- The Squeekchain mark is inlined as a data URI in the deployed page. The repo file [`assets/squeekchain-mark.jpg`](assets/squeekchain-mark.jpg) is base64 text, not a binary JPEG; the deployed page does not depend on it. This repository does not establish the mark as the official SQK token logo.
+- Care, bond, nap, and Spin Dash are local. They do not post anywhere on-chain.
+- Balances and logs come from public Sepolia RPC endpoints. If those endpoints fail, the affected cells become an em dash or an error sentence. A log scan can transiently hit `pruned history unavailable`; the layer retries across the fallback endpoints.
+- The app is a Sepolia testnet interface. It does not claim mainnet balances. It sends exactly one transaction type (Claim SQK); it does not submit merges or transfers.
+- Connected-wallet states (pack with a real Squeek, the claim button) need a real wallet on a phone to verify visually.
