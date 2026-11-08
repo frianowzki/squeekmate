@@ -18,6 +18,8 @@ Squeekmate is a small handheld console in the browser. Connect a wallet, watch a
 
 The app never sends a transaction and never calls a signing method. Connecting an extension still asks that wallet for permission to share an account.
 
+squeekchain-project: 25bd4d64-4072-4e65-933f-e6de29f5954d
+
 **Live app:** [https://squeekmate.xyz](https://squeekmate.xyz)
 
 ## Contents
