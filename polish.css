@@ -1,0 +1,129 @@
+/* Small interaction and layout fixes. The console, scenes, and type stay as they are. */
+
+.sr-only{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+
+.skip{
+  position:absolute;
+  left:10px;
+  top:10px;
+  z-index:80;
+  transform:translateY(-160%);
+  background:#17171d;
+  color:#f2c230;
+  border-radius:4px;
+  padding:8px 12px;
+  font-weight:700;
+  text-decoration:none;
+}
+.skip:focus{
+  transform:none;
+}
+
+.iconbtn:focus-visible,
+.tabbar button:focus-visible,
+.phys button:focus-visible,
+.deckdots button:focus-visible,
+.hintbtn:focus-visible,
+.themebtn:focus-visible,
+.btn:focus-visible,
+.addr:focus-visible{
+  outline:2px solid var(--sky);
+  outline-offset:2px;
+}
+
+html{
+  scroll-padding-bottom:calc(var(--tab-h) + 28px);
+}
+@media (min-width:860px){
+  body{
+    padding-bottom:calc(96px + var(--tab-h) + env(safe-area-inset-bottom));
+  }
+}
+
+.field[aria-invalid="true"]{
+  border-color:var(--red);
+}
+
+.btn[data-feed][aria-pressed="true"]{
+  border-color:var(--amber-deep);
+}
+
+.addr{
+  cursor:pointer;
+  width:max-content;
+  max-width:100%;
+  border-bottom:1px dashed var(--line2);
+}
+.addr[data-copied="true"]::after{
+  content:"Copied";
+  margin-left:8px;
+  color:var(--mint);
+  font-size:11px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+@media (pointer:coarse){
+  .iconbtn{
+    width:44px;
+    height:44px;
+  }
+}
+
+@media (max-width:859px){
+  /* DOM order is gadget, spin, vitals, chain. Flex order matches the dots. */
+  .petdeck .s-gadget{order:1}
+  .petdeck .s-vitals{order:2}
+  .petdeck .s-chain{order:3}
+  .petdeck .s-spin{order:4}
+  .view.on > .deckdots{
+    opacity:1;
+    pointer-events:auto;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:0;
+    margin:0;
+    transform:none;
+  }
+  .deckdots button{
+    appearance:none;
+    background:transparent;
+    border:0;
+    width:36px;
+    height:32px;
+    padding:0;
+    display:grid;
+    place-items:center;
+  }
+  .deckdots button::before{
+    content:"";
+    width:16px;
+    height:5px;
+    border-radius:999px;
+    background:var(--line2);
+  }
+  .deckdots button.on::before{
+    width:28px;
+    background:#f2c230;
+  }
+  .deckdots button:focus-visible::before{
+    box-shadow:0 0 0 2px var(--sky);
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .deckdots button::before{
+    transition:none;
+  }
+}
