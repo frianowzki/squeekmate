@@ -7,7 +7,7 @@
 A Tamagotchi for your Squeek NFT — fed by live Squeekchain data,
 not by make-believe numbers.
 
-[Live app](https://squeekmate.vercel.app/) · Sepolia testnet · Read-only wallet · No build step
+[Live app](https://squeekmate.xyz) · Sepolia testnet · Read-only wallet · No build step
 
 </div>
 
