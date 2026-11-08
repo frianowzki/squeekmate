@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="3840" height="2160" alt="f8dfcda6-24fd-482b-9374-8de317c4c7d9" src="https://github.com/user-attachments/assets/7b22dbdc-b23c-4d86-823b-691bfc1c61ff" />
+
 # SQUEEKMATE
 
 **Your Squeek, alive in your pocket.**
