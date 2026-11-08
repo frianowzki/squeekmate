@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://squeekmate.xyz">
-    <img src="assets/squeekchain-mark.jpg" alt="Squeekchain mark used on the Squeekmate shell" width="96">
   </a>
 </p>
 
